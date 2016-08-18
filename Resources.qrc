@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/image">
+        <file alias="explosion">Resources/explosion.png</file>
+        <file alias="flag">Resources/flag.png</file>
+        <file alias="mine">Resources/mine.png</file>
+        <file alias="tag">Resources/tag.png</file>
+        <file alias="confounded">Resources/confounded.png</file>
+        <file alias="cool">Resources/cool.png</file>
+        <file alias="hushed">Resources/hushed.png</file>
+        <file alias="smile">Resources/simle.png</file>
+    </qresource>
+</RCC>
