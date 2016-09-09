@@ -28,11 +28,11 @@ protected:
     virtual void mouseReleaseEvent(QMouseEvent* event);
 
 private:
-    void fillTileRect(QPainter& painter, const Tile* const tile, const QRectF& rect);
-    void drawTileGrid(QPainter& painter, const Tile* const tile, const QRectF& rect);
-    void drawTileImage(QPainter& painter, const Tile* const tile, const QRectF& rect);
-    void drawTileBoarder(QPainter& painter, const Tile* const tile, const QRectF& rect);
-    void drawTileText(QPainter& painter, const Tile* const tile, const QRectF& rect);
+    void fillTileRect(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
+    void drawTileGrid(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
+    void drawTileImage(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
+    void drawTileBoarder(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
+    void drawTileText(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
     void drawBorder(QPainter& painter);
 
     MineSweeper* mc;

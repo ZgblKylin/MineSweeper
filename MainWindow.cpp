@@ -19,11 +19,15 @@ MainWindow::MainWindow(QWidget* parent) :
     timer.setInterval(10);
 
     ui->setupUi(this);
+
+    QPoint colRange = mc->getColumnRange();
+    QPoint rowRange = mc->getRowRange();
+    customDialog = new CustomDialog(colRange, rowRange, this);
+
     mc->init(this, QSize(ui->mainLayout->contentsMargins().left()
                          + ui->mainLayout->contentsMargins().right()
                          + 4,
                          height() - 2));
-    ui->mineField->init();
 
     ui->buttonRestart->setFixedSize(ui->timeLayout->sizeHint().height() + 12,
                                     ui->timeLayout->sizeHint().height() + 12);
@@ -36,13 +40,15 @@ MainWindow::MainWindow(QWidget* parent) :
                    | Qt::WindowTitleHint | Qt::WindowMinimizeButtonHint
                    | Qt::WindowCloseButtonHint | Qt::WindowShadeButtonHint);
 
+    QSizeF maxFieldSize(initWindowSize);
+    qreal maxTileWidth = maxFieldSize.width() / colRange.y() - 1;
+    qreal maxTileHeight = maxFieldSize.height() / rowRange.y() - 1;
+    Tile::setSize(std::min(maxTileWidth, maxTileHeight));
+
+    ui->mineField->init();
     startGame(MineSweeper::Difficulty::Simple, false);
     initWindowSize = minimumSizeHint();
     initFieldSize = ui->mineField->size();
-
-    QPoint colRange = mc->getColumnRange();
-    QPoint rowRange = mc->getRowRange();
-    customDialog = new CustomDialog(colRange, rowRange, this);
 
     QRect rect = frameGeometry();
     rect.setSize(minimumSizeHint());

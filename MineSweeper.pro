@@ -15,13 +15,15 @@ SOURCES += main.cpp\
         MainWindow.cpp \
     MineField.cpp \
     MineSweeper.cpp \
-    CustomDialog.cpp
+    CustomDialog.cpp \
+    Tile.cpp
 
 HEADERS += \
     MainWindow.h \
     MineField.h \
     MineSweeper.h \
-    CustomDialog.h
+    CustomDialog.h \
+    Tile.h
 
 FORMS += MainWindow.ui \
     CustomDialog.ui

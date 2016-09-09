@@ -2,9 +2,7 @@
 #include <QtWidgets>
 #include <utility>
 
-Q_GLOBAL_STATIC(MineSweeper, mc);
-
-const qreal MineSweeper::TileSize = 32;
+Q_GLOBAL_STATIC(MineSweeper, mc)
 
 MineSweeper::MineSweeper()
 {
@@ -53,7 +51,6 @@ MineSweeper::MineSweeper()
 
 MineSweeper::~MineSweeper()
 {
-
     // function for saving ranklist with given level
     auto saveRank = [this](Difficulty level)
     {
@@ -109,7 +106,7 @@ bool MineSweeper::isScreenHorizontal() const
     return screenHorizontal;
 }
 
-const QVector<QVector<Tile> > MineSweeper::getTiles() const
+const QVector<QVector<QSharedPointer<Tile> > > MineSweeper::getTiles() const
 {
     return tiles;
 }
@@ -144,7 +141,7 @@ int MineSweeper::getRank() const
     return rank;
 }
 
-QList<QVariantList> MineSweeper::getRank(Difficulty lvl) const
+QList<QVariantList> MineSweeper::getRank(MineSweeper::Difficulty lvl) const
 {
     return ranklist[lvl];
 }
@@ -162,37 +159,37 @@ const QPoint MineSweeper::getRowRange() const
 qreal MineSweeper::getTime() const
 {
     static qreal time;
-    if(state == State::Running)
+    if(state == MineSweeper::State::Running)
         time = timer.elapsed() / static_cast<qreal>(1000);
     return time;
 }
 
-void MineSweeper::startGame(Difficulty lvl, QSize size, int mines)
+void MineSweeper::startGame(MineSweeper::Difficulty lvl, QSize size, int mines)
 {
     difficulty = lvl;
-    state = State::Running;
+    state = MineSweeper::State::Running;
 
     // init columns, rows, mines. columns is larger
     int col = 0;
     int row = 0;
     switch(difficulty)
     {
-    case Difficulty::Simple:
+    case MineSweeper::Difficulty::Simple:
         col = 10;
         row = 10;
         maxMineCount = 10;
         break;
-    case Difficulty::Normal:
+    case MineSweeper::Difficulty::Normal:
         col = 16;
         row = 16;
         maxMineCount = 40;
         break;
-    case Difficulty::Hard:
+    case MineSweeper::Difficulty::Hard:
         col = 30;
         row = 16;
         maxMineCount = 99;
         break;
-    case Difficulty::Custom:
+    case MineSweeper::Difficulty::Custom:
         col = size.width();
         row = size.height();
         maxMineCount = mines;
@@ -207,12 +204,16 @@ void MineSweeper::startGame(Difficulty lvl, QSize size, int mines)
     tileSize = QSize(col, row);
 
     // initialize tiles
+    tiles.clear();
     tiles.resize(row);
     for(int r=0;r<row;++r)
     {
-        tiles[r] = QVector<Tile>(col, Tile());
+        tiles[r] = QVector<QSharedPointer<Tile> >(col);
         for(int c=0;c<col;++c)
-            tiles[r][c].pos = QPoint(c, r);
+        {
+            tiles[r][c] = QSharedPointer<Tile>::create();
+            tiles.at(r).at(c)->setIndex(QPoint(c, r));
+        }
     }
 
     // initialize tile neighbours
@@ -220,16 +221,17 @@ void MineSweeper::startGame(Difficulty lvl, QSize size, int mines)
     {
         for(int c=0;c<col;++c)
         {
-            Tile* tile = &tiles[r][c];
+            QSharedPointer<Tile> tile = tiles.at(r).at(c);
             for(int i=0;i<8;++i)
             {
-                int nc = c + Direction[i].x();
-                int nr = r + Direction[i].y();
+                Direction direction = static_cast<Direction>(i);
+                int nc = c + Directions.value(direction).x();
+                int nr = r + Directions.value(direction).y();
                 if(((nc >= 0) && (nc < col))
                    && ((nr >= 0) && (nr < row)))
                 {
-                    Tile* neighbour = &tiles[nr][nc];
-                    tile->neighbours[i] = neighbour;
+                    QSharedPointer<Tile> neighbour = tiles.at(nr).at(nc);
+                    tile->setNeighbour(direction, neighbour);
                 }
             }
         }
@@ -241,10 +243,10 @@ void MineSweeper::startGame(Difficulty lvl, QSize size, int mines)
     {
         int r = qrand()%row;
         int c = qrand()%col;
-        Tile* tile = &tiles[r][c];
-        if(tile->isMine)
+        QSharedPointer<Tile> tile = tiles.at(r).at(c);
+        if(tile->isMine())
             continue;
-        tile->isMine = true;
+        tile->setIsMine(true);
         --mineCount;
     }
     mineCount = maxMineCount;
@@ -254,18 +256,21 @@ void MineSweeper::startGame(Difficulty lvl, QSize size, int mines)
     {
         for(int c=0;c<col;++c)
         {
-            Tile* tile = &tiles[r][c];
+            QSharedPointer<Tile> tile = tiles.at(r).at(c);
+            quint8 count = tile->surroundingMines();
             for(int i=0;i<8;++i)
             {
-                int nc = c + Direction[i].x();
-                int nr = r + Direction[i].y();
+                Direction direction = static_cast<Direction>(i);
+                int nc = c + Directions.value(direction).x();
+                int nr = r + Directions.value(direction).y();
                 if(((nc >= 0) && (nc < col))
                    && ((nr >= 0) && (nr < row)))
                 {
-                    Tile* neighbour = &tiles[nr][nc];
-                    tile->count += (neighbour->isMine?1:0);
+                    QSharedPointer<Tile> neighbour = tiles.at(nr).at(nc);
+                    count += (neighbour->isMine()?1:0);
                 }
             }
+            tile->setSurroundingMines(count);
         }
     }
 
@@ -275,17 +280,19 @@ void MineSweeper::startGame(Difficulty lvl, QSize size, int mines)
 
 void MineSweeper::setPressed(const QPoint& pos, Qt::MouseButton button, bool pressed)
 {
-    Tile* tile = &tiles[pos.y()][pos.x()];
+    QSharedPointer<Tile> tile = tiles.at(pos.y()).at(pos.x());
 
     switch(button)
     {
     case Qt::LeftButton:
         break;
     case Qt::MidButton:
-        for(Tile* neighbour : tile->neighbours)
+        for(int i=0;i<8;++i)
         {
+            Direction direction = static_cast<Direction>(i);
+            QSharedPointer<Tile> neighbour = tile->neighbour(direction);
             if(neighbour)
-                neighbour->pressed[button] = pressed;
+                neighbour->setPressed(button, pressed);
         }
         break;
     case Qt::RightButton:
@@ -294,9 +301,9 @@ void MineSweeper::setPressed(const QPoint& pos, Qt::MouseButton button, bool pre
         break;
     }
 
-    if(tile->pressed.value(button) && !pressed)
+    if(tile->isPressed(button) && !pressed)
     {
-        Tile* tile = &tiles[pos.y()][pos.x()];
+        QSharedPointer<Tile> tile = tiles.at(pos.y()).at(pos.x());
         switch(button)
         {
         case Qt::LeftButton:
@@ -312,18 +319,18 @@ void MineSweeper::setPressed(const QPoint& pos, Qt::MouseButton button, bool pre
             break;
         }
     }
-    tile->pressed[button] = pressed;
+    tile->setPressed(button, pressed);
 }
 
-void MineSweeper::leftClick(Tile* tile)
+void MineSweeper::leftClick(QSharedPointer<Tile> tile)
 {
-    if(state != State::Running)
+    if(state != MineSweeper::State::Running)
         return;
 
     bool exploded = uncover(tile);
     if(exploded)
     {
-        state = State::Fail;
+        state = MineSweeper::State::Fail;
         calcRank();
         emit explode();
     }
@@ -335,22 +342,24 @@ void MineSweeper::leftClick(Tile* tile)
     emit update();
 }
 
-void MineSweeper::midClick(Tile* tile)
+void MineSweeper::midClick(QSharedPointer<Tile> tile)
 {
-    if(state != State::Running)
+    if(state != MineSweeper::State::Running)
         return;
 
-    if(tile->state != Tile::Uncover)
+    if(tile->state() != Tile::Uncover)
         return;
 
-    int mineCount = tile->count;
+    int mineCount = tile->surroundingMines();
     int count = 0;
 
-    for(Tile* neighbour : tile->neighbours)
+    for(int i=0;i<8;++i)
     {
+        Direction direction = static_cast<Direction>(i);
+        QSharedPointer<Tile> neighbour = tile->neighbour(direction);
         if(!neighbour)
             continue;
-        if(neighbour->state == Tile::Flag)
+        if(neighbour->state() == Tile::Flag)
             ++count;
     }
 
@@ -358,17 +367,19 @@ void MineSweeper::midClick(Tile* tile)
         return;
 
     bool exploded = uncover(tile);
-    for(Tile* neighbour : tile->neighbours)
+    for(int i=0;i<8;++i)
     {
+        Direction direction = static_cast<Direction>(i);
+        QSharedPointer<Tile> neighbour = tile->neighbour(direction);
         if(!neighbour)
             continue;
-        if(neighbour->state == Tile::Cover)
+        if(neighbour->state() == Tile::Cover)
             exploded = exploded || uncover(neighbour);
     }
 
     if(exploded)
     {
-        state = State::Fail;
+        state = MineSweeper::State::Fail;
         calcRank();
         emit explode();
     }
@@ -378,23 +389,23 @@ void MineSweeper::midClick(Tile* tile)
     }
 }
 
-void MineSweeper::rightClick(Tile* tile)
+void MineSweeper::rightClick(QSharedPointer<Tile> tile)
 {
-    if(state != State::Running)
+    if(state != MineSweeper::State::Running)
         return;
 
-    switch(tile->state)
+    switch(tile->state())
     {
     case Tile::Cover:
-        tile->state = Tile::Flag;
+        tile->setState(Tile::Flag);
         mineCount -= 1;
         break;
     case Tile::Flag:
-        tile->state = Tile::Tag;
+        tile->setState(Tile::Tag);
         mineCount += 1;
         break;
     case Tile::Tag:
-        tile->state = Tile::Cover;
+        tile->setState(Tile::Cover);
         break;
     case Tile::Explode:
     case Tile::Uncover:
@@ -405,29 +416,31 @@ void MineSweeper::rightClick(Tile* tile)
     emit update();
 }
 
-bool MineSweeper::uncover(Tile* tile)
+bool MineSweeper::uncover(QSharedPointer<Tile> tile)
 {
     // already uncovered
-    if(tile->state != Tile::Cover)
+    if(tile->state() != Tile::Cover)
         return false;
 
     // uncover tile
-    tile->state = Tile::Uncover;
+    tile->setState(Tile::Uncover);
 
     // detect mine
-    if(tile->isMine)
+    if(tile->isMine())
     {
-        tile->state = Tile::Explode;
+        tile->setState(Tile::Explode);
         return true;
     }
 
     // if surrounding mine count is not zero, do not uncover neighbours
-    if(tile->count != 0)
+    if(tile->surroundingMines() != 0)
         return false;
 
     bool exploded = false;
-    for(Tile* neighbour : tile->neighbours)
+    for(int i=0;i<8;++i)
     {
+        Direction direction = static_cast<Direction>(i);
+        QSharedPointer<Tile> neighbour = tile->neighbour(direction);
         if(neighbour)
             exploded = (exploded || uncover(neighbour));
     }
@@ -446,14 +459,14 @@ void MineSweeper::checkSuccess()
     {
         Q_FOREACH(auto tile, row)
         {
-            if((tile.state != Tile::Uncover) && (!tile.isMine))
+            if((tile->state() != Tile::Uncover) && (!tile->isMine()))
                 onlyMineLeft = false;
         }
     }
 
     if(onlyMineLeft)
     {
-        state = State::Success;
+        state = MineSweeper::State::Success;
         calcRank();
         emit success();
     }
