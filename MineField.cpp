@@ -2,14 +2,18 @@
 #include "MineSweeper.h"
 
 MineField::MineField(QWidget* parent)
-    : QFrame(parent)
+    : QGraphicsView(parent)
 {
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setScene(&scene);
     logic = MineSweeper::instance();
-    setMouseTracking(true);
 }
 
 MineField::~MineField()
 {
+    Q_FOREACH(auto item, scene.items())
+        scene.removeItem(item);
 }
 
 void MineField::init()
@@ -21,276 +25,73 @@ void MineField::init()
 
 void MineField::started()
 {
+    setEnabled(true);
+
     QSize size = logic->getTileSize();
     setFixedSize(size.width() * Tile::size(),
                  size.height() * Tile::size());
+
+    Q_FOREACH(auto item, scene.items())
+        scene.removeItem(item);
+    auto tiles = logic->getTiles();
+    scene.setSceneRect(0,
+                       0,
+                       size.width() * Tile::size(),
+                       size.height() * Tile::size());
+    Q_FOREACH(auto row, tiles)
+    {
+        Q_FOREACH(auto tile, row)
+        {
+            scene.addItem(tile.data());
+            tile->setPos(tile->index().x() * Tile::size(),
+                         tile->index().y() * Tile::size());
+        }
+    }
 }
 
 void MineField::success()
 {
+    setEnabled(false);
 }
 
 void MineField::explode()
 {
-}
-
-void MineField::paintEvent(QPaintEvent*)
-{
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setRenderHint(QPainter::TextAntialiasing);
-    painter.setRenderHint(QPainter::SmoothPixmapTransform);
-
-    QFont font = painter.font();
-    font.setBold(true);
-    painter.setFont(font);
-
-    QPen pen = painter.pen();
-    pen.setWidth(1);
-    pen.setStyle(Qt::SolidLine);
-    painter.setPen(pen);
-
-    QVector<QVector<QSharedPointer<Tile> > > tiles = logic->getTiles();
-
-    for(auto row=tiles.cbegin();row!=tiles.cend();++row)
-    {
-        for(auto tile=row->cbegin();tile!=row->cend();++tile)
-        {
-            QRectF rect((*tile)->index().x() * Tile::size(),
-                        (*tile)->index().y() * Tile::size(),
-                        Tile::size(),
-                        Tile::size());
-
-            fillTileRect(painter, *tile, rect);
-            drawTileGrid(painter, *tile, rect);
-            drawTileImage(painter, *tile, rect);
-            drawTileBoarder(painter, *tile, rect);
-            drawTileText(painter, *tile, rect);
-        }
-    }
+    setEnabled(false);
 }
 
 void MineField::mouseMoveEvent(QMouseEvent* event)
 {
-    Q_UNUSED(event)
-    update();
+    auto tile = dynamic_cast<Tile*>(scene.itemAt(event->pos(), QTransform()));
+    if(!tile)
+        return;
+    if(event->buttons().testFlag(Qt::MidButton))
+    {
+        logic->moveHover(tile->index());
+        viewport()->update();
+    }
+    QGraphicsView::mouseMoveEvent(event);
 }
 
 void MineField::mousePressEvent(QMouseEvent* event)
 {
-    if(button != Qt::NoButton)
-        return;
-    button = event->button();
-
-    emit press();
-
-    pressPos = event->pos();
-    switch(button)
+    QGraphicsView::mousePressEvent(event);
+    if(event->button() == Qt::MidButton)
     {
-    case Qt::LeftButton:
-    case Qt::MidButton:
-    case Qt::RightButton:
-        logic->setPressed(QPoint(pressPos.x() / Tile::size(),
-                              pressPos.y() / Tile::size()),
-                       button, true);
-        break;
-    default:
-        break;
+        auto tile = dynamic_cast<Tile*>(scene.itemAt(event->pos(), QTransform()));
+        logic->moveHover(tile->index());
     }
-
-    update();
+    emit press();
+    viewport()->repaint();
 }
 
 void MineField::mouseReleaseEvent(QMouseEvent* event)
 {
-    if(button != event->button())
-        return;
-
+    QGraphicsView::mouseReleaseEvent(event);
+    if(event->button() == Qt::MidButton)
+    {
+        auto tile = dynamic_cast<Tile*>(scene.itemAt(event->pos(), QTransform()));
+        logic->setPressed(tile->index(), Qt::MidButton, false);
+    }
     emit release();
-
-    switch(button)
-    {
-    case Qt::LeftButton:
-    case Qt::MidButton:
-    case Qt::RightButton:
-        logic->setPressed(QPoint(pressPos.x() / Tile::size(),
-                              pressPos.y() / Tile::size()),
-                       button, false);
-        break;
-    default:
-        break;
-    }
-    button = Qt::NoButton;
-
-    update();
-}
-
-void MineField::fillTileRect(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect)
-{
-    QBrush brush;
-    switch(tile->state())
-    {
-    case Tile::Uncover:
-    case Tile::Explode:
-        brush = QBrush(palette().background());
-        break;
-    case Tile::Cover:
-    case Tile::Flag:
-    case Tile::Tag:
-        if(rect.contains(mapFromGlobal(QCursor::pos())))
-            brush = QBrush(palette().color(QPalette::Active, QPalette::Midlight));
-        else
-            brush = QBrush(palette().color(QPalette::Active, QPalette::Button));
-        break;
-    }
-    painter.fillRect(rect, brush);
-}
-
-void MineField::drawTileGrid(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect)
-{
-    painter.save();
-    QPen pen = painter.pen();
-    pen.setWidth(1);
-    pen.setColor(palette().background().color().darker());
-    painter.setPen(pen);
-    if(tile->neighbour(Direction::Top))
-        painter.drawLine(rect.topLeft(), rect.topRight());
-    if(tile->neighbour(Direction::Left))
-        painter.drawLine(rect.topLeft(), rect.bottomLeft());
-    painter.restore();
-}
-
-void MineField::drawTileImage(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect)
-{
-    QRectF tagRect(rect.x() + rect.width() / 4,
-                   rect.y() + rect.height() / 4,
-                   rect.width() / 2,
-                   rect.height() / 2);
-    QRectF explosionRect = rect;
-    QRectF mineRect(rect.x() + rect.width() / 10,
-                    rect.y() + rect.height() / 10,
-                    rect.width() * 4 / 5,
-                    rect.height() * 4 / 5);
-    switch(tile->state())
-    {
-    case Tile::Flag:
-        painter.drawImage(tagRect, QImage(":/image/flag"));
-        break;
-    case Tile::Tag:
-        painter.drawImage(tagRect, QImage(":/image/tag"));
-        break;
-    case Tile::Explode:
-        painter.drawImage(explosionRect, QImage(":/image/explosion"));
-        break;
-    case Tile::Uncover:
-        if(tile->isMine())
-            painter.drawImage(mineRect, QImage(":/image/mine"));
-        break;
-    case Tile::Cover:
-        if((logic->getState() != MineSweeper::State::Running) && (tile->isMine()))
-            painter.drawImage(mineRect, QImage(":/image/mine"));
-        break;
-    }
-}
-
-void MineField::drawTileBoarder(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect)
-{
-    painter.save();
-    QPen pen = painter.pen();
-    switch(tile->state())
-    {
-    case Tile::Cover:
-    case Tile::Flag:
-    case Tile::Tag:
-    {
-        pen.setWidth(3);
-        QColor light = palette().background().color().lighter(1000);
-        QColor shadow = palette().background().color().darker(200);
-        bool pressed = tile->isPressed(Qt::LeftButton)
-                       || tile->isPressed(Qt::MidButton);
-
-        // draw light side of top and left
-        pen.setColor(pressed?shadow:light);
-        painter.setPen(pen);
-        painter.drawLine(rect.topLeft() + QPoint(1, 1),
-                         rect.topRight() + QPoint(-1, 1));
-        painter.drawLine(rect.topLeft() + QPoint(1, 1),
-                         rect.bottomLeft() + QPoint(1, -1));
-
-        // draw shadow side of bottom and right
-        pen.setColor(pressed?light:shadow);
-        painter.setPen(pen);
-        painter.drawLine(rect.topRight() + QPoint(-1, 3),
-                         rect.bottomRight() + QPoint(-1, -1));
-        painter.drawLine(rect.bottomLeft() + QPoint(3, -1),
-                         rect.bottomRight() + QPoint(-1, -1));
-    }
-        break;
-    case Tile::Explode:
-    case Tile::Uncover:
-        break;
-    }
-    painter.restore();
-}
-
-void MineField::drawTileText(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect)
-{
-    painter.save();
-    QPen pen = painter.pen();
-    switch(tile->state())
-    {
-    case Tile::Cover:
-    case Tile::Flag:
-    case Tile::Tag:
-    case Tile::Explode:
-        break;
-    case Tile::Uncover:
-        switch(tile->surroundingMines())
-        {
-        case 1:
-            pen.setColor(Qt::blue);
-            break;
-        case 2:
-            pen.setColor(Qt::green);
-            break;
-        case 3:
-            pen.setColor(Qt::red);
-            break;
-        case 4:
-            pen.setColor(Qt::darkBlue);
-            break;
-        case 5:
-            pen.setColor(Qt::darkRed);
-            break;
-        case 6:
-            pen.setColor(Qt::darkGreen);
-            break;
-        case 7:
-            pen.setColor(Qt::darkGray);
-            break;
-        case 8:
-            pen.setColor(Qt::black);
-            break;
-        }
-        if(tile->surroundingMines() == 0)
-            break;
-        painter.setPen(pen);
-        painter.drawText(rect, Qt::AlignCenter,
-                         QString::number(tile->surroundingMines()));
-        break;
-    }
-    painter.restore();
-}
-
-void MineField::drawBorder(QPainter& painter)
-{
-    painter.save();
-    QPen pen = painter.pen();
-    pen.setColor(palette().color(QPalette::Normal, QPalette::Base));
-    painter.setPen(pen);
-    painter.drawLine(0, 0, width(), 0);
-    painter.drawLine(width(), 0, width(), height());
-    painter.drawLine(width(), height(), 0, height());
-    painter.drawLine(0, height(), 0, 0);
-    painter.restore();
+    viewport()->repaint();
 }

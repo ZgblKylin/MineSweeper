@@ -27,7 +27,7 @@ const static QMap<Direction, QPoint> Directions {
 };
 
 struct TileData;
-class Tile : public QGraphicsItem
+class Tile final : public QGraphicsItem
 {
 public:
     Tile();
@@ -42,7 +42,7 @@ public:
     };
 
     static qreal size();
-    static qreal setSize(qreal newSize);
+    static void setSize(qreal newSize);
 
     QRectF boundingRect() const override final;
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override final;
@@ -65,7 +65,17 @@ public:
     QSharedPointer<Tile> neighbour(Direction pos) const;
     void setNeighbour(Direction pos, QSharedPointer<Tile> neighbour);
 
+protected:
+    void mousePressEvent(QGraphicsSceneMouseEvent* event) override final;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) override final;
+
 private:
+    void fillTileRect(QPainter* painter, const QStyleOptionGraphicsItem* option);
+    void drawTileGrid(QPainter* painter, const QStyleOptionGraphicsItem* option);
+    void drawTileImage(QPainter* painter, const QStyleOptionGraphicsItem* option);
+    void drawTileBoarder(QPainter* painter, const QStyleOptionGraphicsItem* option);
+    void drawTileText(QPainter* painter, const QStyleOptionGraphicsItem* option);
+
     TileData *d = nullptr;
 };
 

@@ -9,7 +9,7 @@ CustomDialog::CustomDialog(QPoint rowRange, QPoint colRange, QWidget* parent)
     ui->rowValue->setRange(rowRange.x(), rowRange.y());
     ui->colValue->setRange(colRange.x(), colRange.y());
     ui->mineValue->setRange(1, ui->rowValue->value() * ui->colValue->value());
-    ui->mineValue->setValue(ui->rowValue->value() * ui->colValue->value() / 5);
+    ui->mineValue->setValue(ui->rowValue->value() * ui->colValue->value() / 3);
     setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint
                    | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 }

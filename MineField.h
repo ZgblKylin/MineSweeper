@@ -5,7 +5,7 @@
 
 class Tile;
 class MineSweeper;
-class MineField : public QFrame
+class MineField : public QGraphicsView
 {
     Q_OBJECT
 
@@ -22,19 +22,11 @@ public:
     void explode();
 
 protected:
-    virtual void paintEvent(QPaintEvent* e);
-    virtual void mouseMoveEvent(QMouseEvent* event);
-    virtual void mousePressEvent(QMouseEvent* event);
-    virtual void mouseReleaseEvent(QMouseEvent* event);
+    void mouseMoveEvent(QMouseEvent* event) override final;
+    void mousePressEvent(QMouseEvent* event) override final;
+    void mouseReleaseEvent(QMouseEvent* event) override final;
 
 private:
-    void fillTileRect(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
-    void drawTileGrid(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
-    void drawTileImage(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
-    void drawTileBoarder(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
-    void drawTileText(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
-    void drawBorder(QPainter& painter);
-
     MineSweeper* logic;
     QGraphicsScene scene;
     Qt::MouseButton button = Qt::NoButton;

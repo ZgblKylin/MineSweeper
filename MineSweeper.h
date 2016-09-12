@@ -48,7 +48,11 @@ public:
     qreal getTime() const;
 
     void startGame(Difficulty difficulty = Difficulty::Simple, QSize size = QSize(), int mines = 0);
-    void setPressed(const QPoint& pos, Qt::MouseButton button, bool pressed);
+
+    bool isPressed(const QPoint& index, Qt::MouseButton button) const;
+    void setPressed(const QPoint& index, Qt::MouseButton button, bool pressed);
+    void click(const QPoint& index, Qt::MouseButton button);
+    void moveHover(const QPoint& index);
 
 private:
     void leftClick(QSharedPointer<Tile> tile);

@@ -278,14 +278,18 @@ void MineSweeper::startGame(MineSweeper::Difficulty lvl, QSize size, int mines)
     timer.restart();
 }
 
-void MineSweeper::setPressed(const QPoint& pos, Qt::MouseButton button, bool pressed)
+bool MineSweeper::isPressed(const QPoint& index, Qt::MouseButton button) const
 {
-    QSharedPointer<Tile> tile = tiles.at(pos.y()).at(pos.x());
+    QSharedPointer<Tile> tile = tiles.at(index.y()).at(index.x());
+    return tile->isPressed(button);
+}
+
+void MineSweeper::setPressed(const QPoint& index, Qt::MouseButton button, bool pressed)
+{
+    QSharedPointer<Tile> tile = tiles.at(index.y()).at(index.x());
 
     switch(button)
     {
-    case Qt::LeftButton:
-        break;
     case Qt::MidButton:
         for(int i=0;i<8;++i)
         {
@@ -295,15 +299,20 @@ void MineSweeper::setPressed(const QPoint& pos, Qt::MouseButton button, bool pre
                 neighbour->setPressed(button, pressed);
         }
         break;
+    case Qt::LeftButton:
     case Qt::RightButton:
-        break;
     default:
         break;
     }
+    tile->setPressed(button, pressed);
+}
 
-    if(tile->isPressed(button) && !pressed)
+void MineSweeper::click(const QPoint& index, Qt::MouseButton button)
+{
+    QSharedPointer<Tile> tile = tiles.at(index.y()).at(index.x());
+    if(tile->isPressed(button))
     {
-        QSharedPointer<Tile> tile = tiles.at(pos.y()).at(pos.x());
+        QSharedPointer<Tile> tile = tiles.at(index.y()).at(index.x());
         switch(button)
         {
         case Qt::LeftButton:
@@ -319,7 +328,16 @@ void MineSweeper::setPressed(const QPoint& pos, Qt::MouseButton button, bool pre
             break;
         }
     }
-    tile->setPressed(button, pressed);
+}
+
+void MineSweeper::moveHover(const QPoint& index)
+{
+    Q_FOREACH(auto row, tiles)
+    {
+        Q_FOREACH(auto tile, row)
+            tile->setPressed(Qt::MidButton, false);
+    }
+    setPressed(index, Qt::MidButton, true);
 }
 
 void MineSweeper::leftClick(QSharedPointer<Tile> tile)

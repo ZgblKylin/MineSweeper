@@ -40,12 +40,15 @@ protected:
     Q_SLOT void update();
 
 private:
+    void initUi();
+    void initLogic();
+    void initField();
     void startGame(MineSweeper::Difficulty difficulty, bool resize = true);
 
     Q_SLOT void timeout();
 
     Ui::MainWindow* ui;
-    MineSweeper* mc;
+    MineSweeper* logic;
     CustomDialog* customDialog;
 
     QSize tileSize;

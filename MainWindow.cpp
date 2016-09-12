@@ -6,56 +6,10 @@ MainWindow::MainWindow(QWidget* parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-//    initUi();
-//    initField();
-
-    mc = MineSweeper::instance();
-    connect(mc, &MineSweeper::success,
-            this, &MainWindow::success);
-    connect(mc, &MineSweeper::explode,
-            this, &MainWindow::explode);
-    connect(mc, &MineSweeper::update,
-            this, &MainWindow::update);
-
-    connect(&timer, &QTimer::timeout,
-            this, &MainWindow::timeout);
-    timer.setInterval(10);
-
-    ui->setupUi(this);
-
-    QPoint colRange = mc->getColumnRange();
-    QPoint rowRange = mc->getRowRange();
-    customDialog = new CustomDialog(colRange, rowRange, this);
-
-    mc->init(this, QSize(ui->mainLayout->contentsMargins().left()
-                         + ui->mainLayout->contentsMargins().right()
-                         + 4,
-                         height() - 2));
-
-    ui->buttonRestart->setFixedSize(ui->timeLayout->sizeHint().height() + 12,
-                                    ui->timeLayout->sizeHint().height() + 12);
-    ui->buttonRestart->setIconSize(ui->buttonRestart->size());
-
-    ui->actionQuit->setShortcuts(QKeySequence::Quit);
-    ui->actionHelp->setShortcuts(QKeySequence::HelpContents);
-
-    setWindowFlags(Qt::Window | Qt::CustomizeWindowHint
-                   | Qt::WindowTitleHint | Qt::WindowMinimizeButtonHint
-                   | Qt::WindowCloseButtonHint | Qt::WindowShadeButtonHint);
-
-    QMargins margins = ui->centralwidget->layout()->contentsMargins();
-    baseSize = QSize(margins.left() + margins.right() + ui->frame->lineWidth() * 2,
-                     height());
-    QSizeF maxFieldSize = qApp->desktop()->availableGeometry().size() - baseSize;
-    qreal maxTileWidth = maxFieldSize.width() / colRange.y() - 1;
-    qreal maxTileHeight = maxFieldSize.height() / rowRange.y() - 1;
-    Tile::setSize(std::min(maxTileWidth, maxTileHeight));
-    baseSize = QSize();
-
-    ui->mineField->init();
+    initUi();
+    initLogic();
+    initField();
     startGame(MineSweeper::Difficulty::Simple, false);
-
-    timer.start();
 }
 
 MainWindow::~MainWindow()
@@ -85,14 +39,14 @@ void MainWindow::resizeEvent(QResizeEvent* e)
     QMainWindow::resizeEvent(e);
 
     QRect rect = frameGeometry();
-    rect.setSize(minimumSizeHint());
+    rect.setSize(size());
     rect.moveCenter(qApp->desktop()->availableGeometry(this).center());
     move(rect.topLeft());
 }
 
 void MainWindow::on_actionRestart_triggered()
 {
-    startGame(mc->getDifficulty());
+    startGame(logic->getDifficulty());
 }
 
 void MainWindow::on_actionSimple_triggered()
@@ -181,9 +135,68 @@ void MainWindow::explode()
 
 void MainWindow::update()
 {
-    ui->mineNum->setValue(mc->getMineCount());
+    ui->mineNum->display(logic->getMineCount());
     ui->mineField->update();
     QMainWindow::update();
+}
+
+void MainWindow::initUi()
+{
+    ui->setupUi(this);
+
+    ui->mineNum->setFixedHeight(ui->mineLabel->height() * 2);
+    ui->timeNum->setFixedHeight(ui->timeLabel->height() * 2);
+    ui->timeNum->setFixedWidth(ui->timeLabel->width() * 2);
+    ui->mineNum->setFixedWidth(ui->timeNum->width());
+
+    ui->buttonRestart->setFixedSize(ui->timeLayout->sizeHint().height() + 12,
+                                    ui->timeLayout->sizeHint().height() + 12);
+    ui->buttonRestart->setIconSize(ui->buttonRestart->size());
+
+    ui->actionQuit->setShortcuts(QKeySequence::Quit);
+    ui->actionHelp->setShortcuts(QKeySequence::HelpContents);
+
+    setWindowFlags(Qt::Window | Qt::CustomizeWindowHint
+                   | Qt::WindowTitleHint | Qt::WindowMinimizeButtonHint
+                   | Qt::WindowCloseButtonHint | Qt::WindowShadeButtonHint);
+}
+
+void MainWindow::initLogic()
+{
+    logic = MineSweeper::instance();
+    connect(logic, &MineSweeper::success,
+            this, &MainWindow::success);
+    connect(logic, &MineSweeper::explode,
+            this, &MainWindow::explode);
+    connect(logic, &MineSweeper::update,
+            this, &MainWindow::update);
+
+    customDialog = new CustomDialog(logic->getColumnRange(), logic->getRowRange(), this);
+
+    logic->init(this, QSize(ui->mainLayout->contentsMargins().left()
+                            + ui->mainLayout->contentsMargins().right()
+                            + 4,
+                            height() - 2));
+
+    connect(&timer, &QTimer::timeout,
+            this, &MainWindow::timeout);
+    timer.setInterval(10);
+    timer.start();
+}
+
+void MainWindow::initField()
+{
+    QMargins margins = ui->centralwidget->layout()->contentsMargins();
+    baseSize = QSize(margins.left() + margins.right() + ui->frame->lineWidth() * 2,
+                     height());
+    QSize baseWindowSize = frameGeometry().size() - size() + baseSize;
+    QSizeF maxFieldSize = qApp->desktop()->availableGeometry().size() - baseWindowSize;
+    qreal maxTileWidth = maxFieldSize.width() / logic->getColumnRange().y() - 1;
+    qreal maxTileHeight = maxFieldSize.height() / logic->getRowRange().y() - 1;
+    Tile::setSize(std::min(maxTileWidth, maxTileHeight));
+    baseSize = QSize();
+
+    ui->mineField->init();
 }
 
 void MainWindow::startGame(MineSweeper::Difficulty difficulty, bool resize)
@@ -191,10 +204,10 @@ void MainWindow::startGame(MineSweeper::Difficulty difficulty, bool resize)
     finished = false;
     ui->buttonRestart->setIcon(QIcon(":/image/smile"));
 
-    mc->startGame(difficulty, tileSize, maxMineCount);
+    logic->startGame(difficulty, tileSize, maxMineCount);
 
-    tileSize = mc->getTileSize();
-    maxMineCount = mc->getMaxMineCount();
+    tileSize = logic->getTileSize();
+    maxMineCount = logic->getMaxMineCount();
 
     ui->mineField->started();
 
@@ -210,5 +223,9 @@ void MainWindow::startGame(MineSweeper::Difficulty difficulty, bool resize)
 
 void MainWindow::timeout()
 {
-    ui->timeNum->setValue(mc->getTime());
+    ui->timeNum->display(QStringLiteral("%1").arg(logic->getTime(),
+                                                  0,
+                                                  'f',
+                                                  3,
+                                                  QLatin1Char(' ')));
 }
