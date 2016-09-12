@@ -37,16 +37,12 @@ qreal Tile::setSize(qreal newSize)
 
 QRectF Tile::boundingRect() const
 {
-    QRectF rect;
-
-
-
-    return rect;
+    return QRectF(0, 0, Tile::size(), Tile::size());
 }
 
 void Tile::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
-    ;
+    painter->fillRect(1, 1, Tile::size() - 2, Tile::size() - 2, Qt::black);
 }
 
 QPoint Tile::index() const

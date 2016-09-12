@@ -35,9 +35,9 @@ private:
     void drawTileText(QPainter& painter, const QSharedPointer<Tile> tile, const QRectF& rect);
     void drawBorder(QPainter& painter);
 
-    MineSweeper* mc;
+    MineSweeper* logic;
+    QGraphicsScene scene;
     Qt::MouseButton button = Qt::NoButton;
-    QPoint hoverPos;
     QPoint pressPos;
 };
 

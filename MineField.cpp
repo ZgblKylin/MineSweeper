@@ -3,9 +3,8 @@
 
 MineField::MineField(QWidget* parent)
     : QFrame(parent)
-    , hoverPos(QPoint(-1, -1))
 {
-    mc = MineSweeper::instance();
+    logic = MineSweeper::instance();
     setMouseTracking(true);
 }
 
@@ -22,7 +21,7 @@ void MineField::init()
 
 void MineField::started()
 {
-    QSize size = mc->getTileSize();
+    QSize size = logic->getTileSize();
     setFixedSize(size.width() * Tile::size(),
                  size.height() * Tile::size());
 }
@@ -51,7 +50,7 @@ void MineField::paintEvent(QPaintEvent*)
     pen.setStyle(Qt::SolidLine);
     painter.setPen(pen);
 
-    QVector<QVector<QSharedPointer<Tile> > > tiles = mc->getTiles();
+    QVector<QVector<QSharedPointer<Tile> > > tiles = logic->getTiles();
 
     for(auto row=tiles.cbegin();row!=tiles.cend();++row)
     {
@@ -73,7 +72,7 @@ void MineField::paintEvent(QPaintEvent*)
 
 void MineField::mouseMoveEvent(QMouseEvent* event)
 {
-    hoverPos = event->pos();
+    Q_UNUSED(event)
     update();
 }
 
@@ -91,7 +90,7 @@ void MineField::mousePressEvent(QMouseEvent* event)
     case Qt::LeftButton:
     case Qt::MidButton:
     case Qt::RightButton:
-        mc->setPressed(QPoint(pressPos.x() / Tile::size(),
+        logic->setPressed(QPoint(pressPos.x() / Tile::size(),
                               pressPos.y() / Tile::size()),
                        button, true);
         break;
@@ -114,7 +113,7 @@ void MineField::mouseReleaseEvent(QMouseEvent* event)
     case Qt::LeftButton:
     case Qt::MidButton:
     case Qt::RightButton:
-        mc->setPressed(QPoint(pressPos.x() / Tile::size(),
+        logic->setPressed(QPoint(pressPos.x() / Tile::size(),
                               pressPos.y() / Tile::size()),
                        button, false);
         break;
@@ -138,7 +137,7 @@ void MineField::fillTileRect(QPainter& painter, const QSharedPointer<Tile> tile,
     case Tile::Cover:
     case Tile::Flag:
     case Tile::Tag:
-        if(rect.contains(hoverPos))
+        if(rect.contains(mapFromGlobal(QCursor::pos())))
             brush = QBrush(palette().color(QPalette::Active, QPalette::Midlight));
         else
             brush = QBrush(palette().color(QPalette::Active, QPalette::Button));
@@ -188,7 +187,7 @@ void MineField::drawTileImage(QPainter& painter, const QSharedPointer<Tile> tile
             painter.drawImage(mineRect, QImage(":/image/mine"));
         break;
     case Tile::Cover:
-        if((mc->getState() != MineSweeper::State::Running) && (tile->isMine()))
+        if((logic->getState() != MineSweeper::State::Running) && (tile->isMine()))
             painter.drawImage(mineRect, QImage(":/image/mine"));
         break;
     }

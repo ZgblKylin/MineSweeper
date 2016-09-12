@@ -19,6 +19,7 @@ public:
 
 protected:
     void changeEvent(QEvent* e);
+    void resizeEvent(QResizeEvent *e);
 
     Q_SLOT void on_actionRestart_triggered();
     Q_SLOT void on_actionSimple_triggered();
@@ -50,8 +51,7 @@ private:
     QSize tileSize;
     int maxMineCount = 0;
 
-    QSize initWindowSize;
-    QSize initFieldSize;
+    QSize baseSize;
 
     bool finished = false;
     QTimer timer;

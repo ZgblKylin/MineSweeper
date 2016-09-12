@@ -6,6 +6,9 @@ MainWindow::MainWindow(QWidget* parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+//    initUi();
+//    initField();
+
     mc = MineSweeper::instance();
     connect(mc, &MineSweeper::success,
             this, &MainWindow::success);
@@ -40,22 +43,17 @@ MainWindow::MainWindow(QWidget* parent) :
                    | Qt::WindowTitleHint | Qt::WindowMinimizeButtonHint
                    | Qt::WindowCloseButtonHint | Qt::WindowShadeButtonHint);
 
-    QSizeF maxFieldSize(initWindowSize);
+    QMargins margins = ui->centralwidget->layout()->contentsMargins();
+    baseSize = QSize(margins.left() + margins.right() + ui->frame->lineWidth() * 2,
+                     height());
+    QSizeF maxFieldSize = qApp->desktop()->availableGeometry().size() - baseSize;
     qreal maxTileWidth = maxFieldSize.width() / colRange.y() - 1;
     qreal maxTileHeight = maxFieldSize.height() / rowRange.y() - 1;
     Tile::setSize(std::min(maxTileWidth, maxTileHeight));
+    baseSize = QSize();
 
     ui->mineField->init();
     startGame(MineSweeper::Difficulty::Simple, false);
-    initWindowSize = minimumSizeHint();
-    initFieldSize = ui->mineField->size();
-
-    QRect rect = frameGeometry();
-    rect.setSize(minimumSizeHint());
-    rect.moveCenter(qApp->desktop()->availableGeometry(this).center());
-    move(rect.topLeft());
-
-    setFixedSize(initWindowSize + ui->mineField->size() - initFieldSize);
 
     timer.start();
 }
@@ -75,6 +73,21 @@ void MainWindow::changeEvent(QEvent* e)
     default:
         break;
     }
+}
+
+void MainWindow::resizeEvent(QResizeEvent* e)
+{
+    if(!baseSize.isValid())
+    {
+        baseSize = e->size() - ui->mineField->size();
+        setFixedSize(e->size());
+    }
+    QMainWindow::resizeEvent(e);
+
+    QRect rect = frameGeometry();
+    rect.setSize(minimumSizeHint());
+    rect.moveCenter(qApp->desktop()->availableGeometry(this).center());
+    move(rect.topLeft());
 }
 
 void MainWindow::on_actionRestart_triggered()
@@ -186,7 +199,7 @@ void MainWindow::startGame(MineSweeper::Difficulty difficulty, bool resize)
     ui->mineField->started();
 
     if(resize)
-        setFixedSize(initWindowSize + ui->mineField->size() - initFieldSize);
+        setFixedSize(baseSize + ui->mineField->size());
 
     QRect rect = frameGeometry();
     rect.moveCenter(qApp->desktop()->availableGeometry(this).center());
